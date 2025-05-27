@@ -107,10 +107,6 @@ class Enemy:
         angle = math.atan2(enemy_dy, enemy_dx)
         self.x += self.speed * math.cos(angle)
         self.y += self.speed * math.sin(angle)
-        enemies = []
-        health_pickups = []
-        health_spawn_message = ""
-        health_spawn_time = 0
     def is_collision(self, other_x, other_y, other_size):
         return (
             self.x < other_x + other_size
@@ -125,33 +121,17 @@ class HealthPickup:
         self.size = size
         self.color = (0, 255, 0)  # Green
 
-        def draw(self, surface, offset_x, offset_y):
-            # Draw a green plus sign
-            cx = int(self.x + offset_x + self.size // 2)
-            cy = int(self.y + offset_y + self.size // 2)
-            thickness = 6
-            length = self.size // 2
-            # Vertical bar
-            pygame.draw.rect(surface, self.color, (cx - thickness // 2, cy - length, thickness, length * 2))
-            # Horizontal bar
-            pygame.draw.rect(surface, self.color, (cx - length, cy - thickness // 2, length * 2, thickness))
-    
-    # Define health_pickups and related variables globally
-    health_pickups = []
-    health_spawn_message = ""
-    health_spawn_time = 0
-    
-    def spawn_health_pickup():
-        global health_pickups, health_spawn_message, health_spawn_time
-        while True:
-            x = random.randint(0, world_width - 30)
-            y = random.randint(0, world_height - 30)
-            if math.sqrt((x - player_x) ** 2 + (y - player_y) ** 2) > 100:
-                break
-        health_pickups.append(HealthPickup(x, y))
-        health_spawn_message = "Health pickup spawned!"
-        health_spawn_time = pygame.time.get_ticks() / 1000
-# Function to keep the camera centered on the player
+def spawn_health_pickup():
+    global health_pickups, health_spawn_message, health_spawn_time
+    while True:
+        x = random.randint(0, world_width - 30)
+        y = random.randint(0, world_height - 30)
+        if math.sqrt((x - player_x) ** 2 + (y - player_y) ** 2) > 100:
+            break
+    health_pickups.append(HealthPickup(x, y))
+    health_spawn_message = "Health pickup spawned!"
+    health_spawn_time = pygame.time.get_ticks() / 1000
+
 def update_camera():
     global camera_x, camera_y
     camera_x = player_x - screen_width // 2
@@ -167,15 +147,16 @@ def update_camera():
     elif camera_y > world_height - screen_height:
         camera_y = world_height - screen_height
 
-# Function to draw the checkered background
+# Define tile_size for the checkered background
+tile_size = 100
+
 def draw_checkered_background():
-    tile_size = 50  # Size of each square in the grid
-    # Calculate the number of tiles needed to cover the entire world
     num_tiles_x = math.ceil(world_width / tile_size)
     num_tiles_y = math.ceil(world_height / tile_size)
     # Loop through the tiles and draw them
     for x in range(num_tiles_x):
-        for y in range(num_tiles_y):            # Calculate the position of the tile, adjusted for the camera
+        for y in range(num_tiles_y):
+            # Calculate the position of the tile, adjusted for the camera
             tile_x = x * tile_size - camera_x
             tile_y = y * tile_size - camera_y
 
@@ -272,74 +253,64 @@ def spawn_wave():
     game_wave += 1
     enemies = []  # Clear existing enemies
     enemy_count = 0
-    enemies_spawned = False #reset
+    enemies_spawned = True  # Set to True after spawning
     wave_in_progress = True
-    # Define the number of enemies and types for each wave
-    if game_wave <= 10:  # Make first 10 waves easier
-        if game_wave == 1:
-            num_squares = 1
-            num_triangles = 0
-            num_circles = 0
-        elif game_wave == 2:
-            num_squares = 2
-            num_triangles = 0
-            num_circles = 0
-        elif game_wave == 3:
-            num_squares = 3
-            num_triangles = 1
-            num_circles = 0
-        elif game_wave == 4:
-            num_squares = 3
-            num_triangles = 1
-            num_circles = 0
-        elif game_wave == 5:
-            num_squares = 4
-            num_triangles = 1
-            num_circles = 0
-        elif game_wave == 6:
-            num_squares = 4
-            num_triangles = 2
-            num_circles = 0
-        elif game_wave == 7:
-            num_squares = 5
-            num_triangles = 2
-            num_circles = 0
-        elif game_wave == 8:
-            num_squares = 5
-            num_triangles = 2
-            num_circles = 1
+
+    # Determine number of each enemy type for this wave
+    if game_wave == 1:
+        num_squares, num_triangles, num_circles = 1, 0, 0
+    elif game_wave == 2:
+        num_squares, num_triangles, num_circles = 2, 0, 0
+    elif game_wave == 3:
+        num_squares, num_triangles, num_circles = 3, 1, 0
+    elif game_wave == 4:
+        num_squares, num_triangles, num_circles = 3, 1, 0
+    elif game_wave == 5:
+        num_squares, num_triangles, num_circles = 4, 1, 0
+    elif game_wave == 6:
+        num_squares, num_triangles, num_circles = 4, 2, 0
+    elif game_wave == 7:
+        num_squares, num_triangles, num_circles = 5, 2, 0
+    elif game_wave == 8:
+        num_squares, num_triangles, num_circles = 5, 2, 1
     elif game_wave == 9:
-        num_squares = 6
-        num_triangles = 2
-        num_circles = 1
+        num_squares, num_triangles, num_circles = 6, 2, 1
     elif game_wave == 10:
-        num_squares = 6
-        num_triangles = 3
-        num_circles = 1
-    elif game_wave > 10: #waves after 10
+        num_squares, num_triangles, num_circles = 6, 3, 1
+    else:  # waves after 10
         num_squares = 7 + (game_wave - 4) * 2
         num_triangles = 3 + (game_wave - 4)
         num_circles = 1 + (game_wave - 4) // 2
 
-    # Spawn enemies from spawn points
-    if not enemies_spawned:
-        for _ in range(num_squares):
-            spawn_x, spawn_y = spawn_points[random.randint(0, len(spawn_points) - 1)]
-            enemies.append(Enemy(spawn_x, spawn_y, enemy_size, enemy_color, enemy_speed, enemy_health, "square", damage=1))
-            enemy_count += 1
-        for _ in range(num_triangles):
-            spawn_x, spawn_y = spawn_points[random.randint(0, len(spawn_points) - 1)]
-            enemies.append(Enemy(spawn_x, spawn_y, triangle_size, (0, 255, 0), triangle_speed, triangle_health, "triangle", damage=1))
-            enemy_count += 1
-        for _ in range(num_circles):
-            spawn_x, spawn_y = spawn_points[random.randint(0, len(spawn_points) - 1)]
-            enemies.append(Enemy(spawn_x, spawn_y, circle_size, (0, 0, 255), circle_speed, circle_health, "circle", damage=2))
-            enemy_count += 1
-        wave_start_time = pygame.time.get_ticks() #reset wave start time
-        enemies_spawned = True #set to true after spawning
-        wave_end_time = wave_start_time + wave_duration * 1000 #set wave end time
-        print(f"Wave {game_wave} started.  {num_squares} squares, {num_triangles} triangles, {num_circles} circles.  Ends at {wave_end_time}")
+    # Spawn squares
+    for _ in range(num_squares):
+        while True:
+            x = random.randint(0, world_width - enemy_size)
+            y = random.randint(0, world_height - enemy_size)
+            if math.sqrt((x - player_x) ** 2 + (y - player_y) ** 2) > 150:
+                break
+        enemies.append(Enemy(x, y, enemy_size, enemy_color, enemy_speed, enemy_health, "square", 1))
+        enemy_count += 1
 
+    # Spawn triangles
+    for _ in range(num_triangles):
+        while True:
+            x = random.randint(0, world_width - triangle_size)
+            y = random.randint(0, world_height - triangle_size)
+            if math.sqrt((x - player_x) ** 2 + (y - player_y) ** 2) > 150:
+                break
+        enemies.append(Enemy(x, y, triangle_size, (0, 255, 255), triangle_speed, triangle_health, "triangle", 2))
+        enemy_count += 1
+
+    # Spawn circles
+    for _ in range(num_circles):
+        while True:
+            x = random.randint(0, world_width - circle_size)
+            y = random.randint(0, world_height - circle_size)
+            if math.sqrt((x - player_x) ** 2 + (y - player_y) ** 2) > 150:
+                break
+        enemies.append(Enemy(x, y, circle_size, (255, 0, 255), circle_speed, circle_health, "circle", 3))
+        enemy_count += 1
 
 # Game loop
 running = True
@@ -385,6 +356,9 @@ while running:
                         double_arrows = True
                         print("Q Ability Activated - Double Arrows")
         else: #if game over, check for mouse click
+            # Draw the game over screen and get the button rects
+            restart_rect, close_rect = draw_game_over_screen()
+            pygame.display.flip()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = event.pos #get mouse position
                 if restart_rect.collidepoint(mouse_pos):
@@ -571,21 +545,18 @@ while running:
             wave_in_progress = False
             enemies_spawned = False
             wave_end_time = pygame.time.get_ticks() + 5000  # 5 second delay (5000 milliseconds)
-        #if (current_time - wave_start_time > wave_duration or enemy_count == 0) and wave_in_progress: #check if wave is in progress
-        #    spawn_wave() #spawn new wave
-        #    time_since_last_wave = current_time #update time
-        #    wave_in_progress = False # Reset to False after wave is spawned
-        #    enemies_spawned = False #reset
-        if current_time * 1000 >= wave_end_time and not wave_in_progress and not enemies_spawned:
-            spawn_wave()
-            wave_in_progress = True
+        # Enemy spawning logic
+        # (No need to spawn enemies here, handled by wave logic below)
+
+        # Wave management
+        if enemy_count == 0 and wave_in_progress:
+            print(f"Wave {game_wave} cleared.  Waiting for next wave.")
+            wave_in_progress = False
             enemies_spawned = False
+            wave_end_time = pygame.time.get_ticks() + 5000  # 5 second delay (5000 milliseconds)
+
+        if pygame.time.get_ticks() >= wave_end_time and not wave_in_progress and not enemies_spawned:
+            spawn_wave()
 
         elif enemy_count > 0: #if there are still enemies
             wave_in_progress = True #keep wave in progress
-
-    else:
-      restart_rect, close_rect = draw_game_over_screen() #draw game over screen and get the rect
-      pygame.display.flip()  # <-- ADD THIS ON LINE 548
-
-pygame.quit()
